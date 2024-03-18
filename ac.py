@@ -1,6 +1,7 @@
 import bech32
 import argparse
 import re
+import json
 
 # Address validation - make sure the user inputs a correct cosmos type address
 def address_validation(address: str) -> bool:
@@ -23,6 +24,11 @@ def address_validation(address: str) -> bool:
     else:
         return False
 
+# Json load
+def load_json_list(file_path):
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+        return data
 
 def main():
     
@@ -35,7 +41,7 @@ def main():
     
     # Parser arguments
     parser.add_argument('--address', dest='address', default='', required=True, help='address to be converted')
-    parser.add_argument('--to', dest='to_prefix', default='osmosis', help='to prefix')
+    parser.add_argument('--to', dest='to_prefix', default='osmosis', help='to prefix. type "all" to convert to every cosmos chain at once.')
     
     args = parser.parse_args()
     address = args.address
@@ -49,17 +55,40 @@ def main():
         except Exception as err:
             print(f'Error parsing "{address}" as bech32 address: {err}')  
 
-        # Set new prefix (default = osmosis)
-        new_prefix = prefix.replace(prefix, to_prefix)
+        # if 'all' prefix is selected
+        if to_prefix == 'all':
+            # Load prefixes stored in json file
+            prefixes = load_json_list('bech32PrefixAccAddr.json')
 
-        # Encode the address
-        try:
-            new_address = bech32.bech32_encode(new_prefix, canonical)
-        except Exception as err:
-            print(f'Error converting "{address}" to "{to_prefix}" prefix: {err}')
+            # Create a new addresses list to catch all
+            new_address_list = []
 
-        print(f'Original address : {address}')
-        print(f'Converted address: {new_address}')
+            # Loop through prefixes and encode new addresses
+            for prefix in prefixes:
+                try:
+                    new_address_list.append(bech32.bech32_encode(prefix, canonical))
+                except Exception as err: 
+                    new_address_list.append('error')
+
+            # Print everything
+            print(f'Original address  : {address}')
+            print('----------------------------------------')
+            for item in new_address_list:
+                print(f'Converted address : {item}')
+
+        # if custom prefix is selected (default=osmosis)
+        else:    
+            new_prefix = prefix.replace(prefix, to_prefix)
+
+            # Encode the address
+            try:
+                new_address = bech32.bech32_encode(new_prefix, canonical)
+            except Exception as err:
+                print(f'Error converting "{address}" to "{to_prefix}" prefix: {err}')
+
+            # Print the 2 addresses
+            print(f'Original address  : {address}')
+            print(f'Converted address : {new_address}')
 
     else:    
         print('Please input a valid cosmos type address!')
